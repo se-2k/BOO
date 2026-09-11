@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#8ed8f8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Boo지런한 하루">
+  <meta name="format-detection" content="telephone=no">
+  <title>부와 말티즈의 맛있는 달리기</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css?v=102">
+</head>
+<body>
+  <main class="phone" aria-label="부와 말티즈의 맛있는 달리기">
+    <canvas id="game" width="390" height="844" aria-label="게임 화면"></canvas>
+
+    <section id="startPanel" class="panel panel--start">
+      <div class="title-mark">맛있는 달리기 <small class="version">v10</small></div>
+      <h1>부와 말티즈의<br>전국 달리기</h1>
+      <p>오산에서 어린이대공원까지 달리고,<br>마지막에는 무중력 우주로!</p>
+      <button id="startButton" class="primary">달리기 시작</button>
+      <label class="preview-label" for="previewRegion">장소를 바로 확인하려면</label>
+      <select id="previewRegion" aria-label="미리 볼 지역 선택">
+        <option value="0">일반 모드 · 오산부터</option>
+        <option value="tour:0">오산부터 살펴보기 · 무적</option>
+        <option value="tour:760">병점·동탄부터 살펴보기 · 무적</option>
+        <option value="tour:1840">신창·순천향대부터 살펴보기 · 무적</option>
+        <option value="tour:2440">교수 대련·대형 거북선 살펴보기 · 무적</option>
+        <option value="tour:2838">순천향대 후문·원룸부터 살펴보기 · 무적</option>
+        <option value="tour:4540">어린이대공원부터 살펴보기 · 무적</option>
+        <option value="tour:5600">고요한 우주부터 살펴보기 · 무적</option>
+      </select>
+      <div class="howto">
+        <span>화면 터치 · 스페이스/↑<br><b>점프 · 우주에서는 위로</b></span>
+        <span>아래로 밀기 · 길게 누르기 · ↓<br><b>엎드리기 · 우주에서는 아래로</b></span>
+      </div>
+    </section>
+
+    <section id="gameOverPanel" class="panel panel--over" hidden>
+      <div class="mini-title">오늘의 달리기</div>
+      <h2 id="resultTitle">잘 달렸어요!</h2>
+      <div class="result-grid">
+        <div><strong id="resultDistance">0m</strong><span>달린 거리</span></div>
+        <div><strong id="resultScore">0</strong><span>점수</span></div>
+      </div>
+      <div id="resultFoods" class="result-foods"></div>
+      <p id="bestScore" class="best"></p>
+      <button id="restartButton" class="primary">다시 달리기</button>
+      <button id="homeButton" class="secondary">처음 화면</button>
+    </section>
+
+    <button id="pauseButton" class="pause" aria-label="일시정지" hidden>Ⅱ</button>
+    <div id="pauseBadge" class="pause-badge" hidden>잠시 멈춤<br><small>화면을 누르면 계속</small></div>
+  </main>
+  <script src="game.js?v=102"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+    }
+  </script>
+</body>
+</html>

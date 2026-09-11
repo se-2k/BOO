@@ -1,0 +1,26 @@
+{
+  "name": "Boo지런한 하루",
+  "short_name": "Boo지런",
+  "description": "부와 말티즈가 전국의 거리를 달리는 세로형 픽셀 러너 게임",
+  "lang": "ko-KR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#8ed8f8",
+  "theme_color": "#8ed8f8",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
