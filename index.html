@@ -12,16 +12,16 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=130">
+  <link rel="stylesheet" href="styles.css?v=150">
 </head>
 <body>
   <main class="phone" aria-label="Boo지런한 하루">
     <canvas id="game" width="390" height="844" aria-label="Boo지런한 하루 게임 화면"></canvas>
 
     <section id="startPanel" class="panel panel--start">
-      <div class="title-mark">부와 말티즈 <small class="version">v13</small></div>
+      <div class="title-mark">부와 중기 <small class="version">v15</small></div>
       <h1>Boo지런한 하루</h1>
-      <p>부와 말티즈가 오산에서 어린이대공원까지 달리고,<br>마지막에는 무중력 우주로!</p>
+      <p>부와 중기가 오산에서 어린이대공원까지 달리고,<br>마지막에는 무중력 우주로!</p>
       <button id="startButton" class="primary">달리기 시작</button>
       <label class="preview-label" for="previewRegion">장소를 바로 확인하려면</label>
       <select id="previewRegion" aria-label="미리 볼 지역 선택">
@@ -57,7 +57,7 @@
     <button id="pauseButton" class="game-control pause" aria-label="일시정지" hidden>Ⅱ</button>
     <div id="pauseBadge" class="pause-badge" hidden>잠시 멈춤<br><small>화면을 누르면 계속</small></div>
   </main>
-  <script src="game.js?v=130"></script>
+  <script src="game.js?v=150"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));

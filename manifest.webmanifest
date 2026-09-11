@@ -1,7 +1,7 @@
 {
   "name": "Boo지런한 하루",
   "short_name": "Boo지런한 하루",
-  "description": "Boo지런한 하루 — 부와 말티즈가 전국의 거리를 달리는 세로형 픽셀 러너 게임",
+  "description": "Boo지런한 하루 — 부와 중기가 전국의 거리를 달리는 세로형 픽셀 러너 게임",
   "lang": "ko-KR",
   "start_url": "./index.html",
   "scope": "./",

@@ -5,7 +5,7 @@
   const ctx = canvas.getContext('2d', { alpha: false });
   const W = 390;
   const H = 844;
-  const GROUND = 770;                 // 부와 말티즈는 도로 위(가까운 차선)를 달린다
+  const GROUND = 770;                 // 부와 중기는 도로 위(가까운 차선)를 달린다
   const SPACE_START = 5550;
   ctx.imageSmoothingEnabled = false;
 
@@ -33,7 +33,7 @@
   const DOG_X = 10;
   const BOO_FOOT_X = BOO_X + 51;
   const DOG_FOOT_X = DOG_X + 38;
-  const DOG_GAP = BOO_X - DOG_X;                                // 말티즈는 부가 지나간 자리를 그대로 따라 달린다
+  const DOG_GAP = BOO_X - DOG_X;                                // 중기는 부가 지나간 자리를 그대로 따라 달린다
   const BOO_SCALE = 0.34;
   const DOG_SCALE = 51 / 346;
 
@@ -114,17 +114,17 @@
       tile: 'space', signs: ['지구에서 5,550m', '고요한 무중력', '계속 유영하는 중'],
       landmarks: [
         { at: 5640, type: 'earth', name: '고요한 무중력 우주', detail: '장애물 없이 위·아래로 자유롭게 날아요' },
-        { at: 6000, type: 'moon', name: '별과 행성 사이', detail: '말티즈와 함께 끝없이 유영해요' },
+        { at: 6000, type: 'moon', name: '별과 행성 사이', detail: '중기와 함께 끝없이 유영해요' },
       ],
     },
   ];
 
   const REGION_ARRIVAL_MESSAGES = {
-    osan: '부서진의 고향 오산에 도착하셨습니다.',
-    dongtan: '부서진의 현재 고향 동탄에 도착하셨습니다.',
-    sch: '부서진의 진짜 고향 순천향대에 도착하셨습니다.',
-    gwangjin: '부서진이 잘 도착했습니다.',
-    space: '앞으로 부서진은 끝없이 더 나아갑니다.',
+    osan: ['부서진의 고향 오산에', '도착하셨습니다.'],
+    dongtan: ['부서진의 현재 고향 동탄에', '도착하셨습니다.'],
+    sch: ['부서진의 진짜 고향 순천향대에', '도착하셨습니다.'],
+    gwangjin: ['부서진이 잘 도착했습니다.'],
+    space: ['앞으로 부서진은 끝없이', '더 나아갑니다.'],
   };
 
   const obstacleKinds = {
@@ -616,7 +616,7 @@
       if ((before < .5 && state.runPhase >= .5) || state.runPhase < before) dust(BOO_X + (state.runPhase < .5 ? 30 : 56), 2);
     }
 
-    // 말티즈가 따라 달릴 수 있도록 부의 궤적을 기록
+    // 중기가 따라 달릴 수 있도록 부의 궤적을 기록
     state.trail.push({ w: state.worldX, y: state.playerY, duck: state.ducking, vy: state.playerVY });
     if (state.trail.length > 400) state.trail.splice(0, state.trail.length - 400);
 
@@ -665,7 +665,7 @@
     state.particles = state.particles.filter((p) => p.life > 0);
   }
 
-  // 부의 실제 몸(머리·몸통·다리)에만 충돌 판정이 있다. 말티즈는 어디에 닿아도 게임이 끝나지 않는다.
+  // 부의 실제 몸(머리·몸통·다리)에만 충돌 판정이 있다. 중기는 어디에 닿아도 게임이 끝나지 않는다.
   function playerBoxes() {
     const feetY = groundAtScreenX(BOO_FOOT_X) + state.playerY + booBob();
     if (state.ducking) return [{ x: 70, y: feetY - 42, w: 104, h: 40 }];
@@ -2152,8 +2152,11 @@
     if (transition.alpha > .48) {
       const titleAlpha = Math.min(1, (transition.alpha - .48) / .3);
       ctx.globalAlpha = titleAlpha;
-      textLabel(transition.next.name, W / 2, H / 2 - 8, 29, '#ffffff', 'center', 900);
-      textLabel(REGION_ARRIVAL_MESSAGES[transition.next.id], W / 2, H / 2 + 31, 12, '#dce5ea', 'center', 900);
+      textLabel(transition.next.name, W / 2, H / 2 - 31, 31, '#ffffff', 'center', 900);
+      const messageLines = REGION_ARRIVAL_MESSAGES[transition.next.id] || [];
+      messageLines.forEach((line, index) => {
+        textLabel(line, W / 2, H / 2 + 10 + index * 25, 17, '#dce5ea', 'center', 900);
+      });
     }
     ctx.restore();
   }
