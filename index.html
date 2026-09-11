@@ -12,14 +12,14 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=102">
+  <link rel="stylesheet" href="styles.css?v=110">
 </head>
 <body>
   <main class="phone" aria-label="부와 말티즈의 맛있는 달리기">
     <canvas id="game" width="390" height="844" aria-label="게임 화면"></canvas>
 
     <section id="startPanel" class="panel panel--start">
-      <div class="title-mark">맛있는 달리기 <small class="version">v10</small></div>
+      <div class="title-mark">맛있는 달리기 <small class="version">v11</small></div>
       <h1>부와 말티즈의<br>전국 달리기</h1>
       <p>오산에서 어린이대공원까지 달리고,<br>마지막에는 무중력 우주로!</p>
       <button id="startButton" class="primary">달리기 시작</button>
@@ -35,8 +35,8 @@
         <option value="tour:5600">고요한 우주부터 살펴보기 · 무적</option>
       </select>
       <div class="howto">
-        <span>화면 터치 · 스페이스/↑<br><b>점프 · 우주에서는 위로</b></span>
-        <span>아래로 밀기 · 길게 누르기 · ↓<br><b>엎드리기 · 우주에서는 아래로</b></span>
+        <span>탭·위로 밀기 · 스페이스/↑<br><b>점프 · 우주에서는 위로</b></span>
+        <span>아래로 밀기 · ↓<br><b>엎드리기 · 우주에서는 아래로</b></span>
       </div>
     </section>
 
@@ -53,10 +53,11 @@
       <button id="homeButton" class="secondary">처음 화면</button>
     </section>
 
-    <button id="pauseButton" class="pause" aria-label="일시정지" hidden>Ⅱ</button>
+    <button id="homeRunButton" class="game-control home-run" aria-label="처음 화면으로 돌아가기" hidden>⌂</button>
+    <button id="pauseButton" class="game-control pause" aria-label="일시정지" hidden>Ⅱ</button>
     <div id="pauseBadge" class="pause-badge" hidden>잠시 멈춤<br><small>화면을 누르면 계속</small></div>
   </main>
-  <script src="game.js?v=102"></script>
+  <script src="game.js?v=110"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));

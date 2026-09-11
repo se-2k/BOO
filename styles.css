@@ -207,10 +207,9 @@ select {
 
 .best { min-height: 23px; margin-bottom: 17px !important; color: #e0523d !important; }
 
-.pause {
+.game-control {
   position: absolute;
   top: max(19px, env(safe-area-inset-top));
-  right: 15px;
   width: 36px;
   height: 36px;
   border: 2px solid rgba(24,32,42,.8);
@@ -218,7 +217,14 @@ select {
   background: rgba(255,255,255,.82);
   color: #18202a;
   font-weight: 900;
+  line-height: 31px;
+  text-align: center;
+  z-index: 4;
 }
+
+.pause { right: 15px; }
+.home-run { right: 59px; font-size: 22px; }
+.game-control:active { transform: translateY(2px); background: rgba(255,255,255,.96); }
 
 .pause-badge {
   position: absolute;

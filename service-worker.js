@@ -1,9 +1,9 @@
-const CACHE_NAME = 'boo-runner-v10-2';
+const CACHE_NAME = 'boo-runner-v11-1';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './styles.css?v=102',
-  './game.js?v=102',
+  './styles.css?v=110',
+  './game.js?v=110',
   './manifest.webmanifest',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',

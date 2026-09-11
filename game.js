@@ -41,6 +41,7 @@
   const startPanel = $('startPanel');
   const gameOverPanel = $('gameOverPanel');
   const pauseButton = $('pauseButton');
+  const homeRunButton = $('homeRunButton');
   const pauseBadge = $('pauseBadge');
   const previewRegion = $('previewRegion');
   const startButton = $('startButton');
@@ -153,6 +154,7 @@
     counts: Object.fromEntries(foods.map((f) => [f.id, 0])),
     firstObstacleAt: 1.6, nextPickup: 0.75, elapsed: 0,
     currentRegion: regions[0], previousRegionId: null, regionBanner: 0,
+    lastObstacleType: null, obstacleTypeStreak: 0,
     landmarkCaption: null, landmarkCaptionTime: 0,
     seenLandmarks: new Set(), lastFrame: performance.now(),
   };
@@ -301,6 +303,24 @@
     return regions.find((region) => distance >= region.start && distance < region.end) || regions.at(-1);
   }
 
+  // 지역 경계 전후에는 화면 전체가 어두워졌다 밝아지고 장애물이 잠시 사라진다.
+  // 거리 기준이라 기기 프레임 속도와 관계없이 동일한 길이로 보인다.
+  const REGION_FADE_BEFORE = 30;
+  const REGION_FADE_AFTER = 42;
+  function regionTransitionAt(distance) {
+    for (let i = 1; i < regions.length; i += 1) {
+      const boundary = regions[i].start;
+      const delta = distance - boundary;
+      if (delta >= -REGION_FADE_BEFORE && delta <= REGION_FADE_AFTER) {
+        const progress = delta < 0
+          ? (delta + REGION_FADE_BEFORE) / REGION_FADE_BEFORE
+          : 1 - delta / REGION_FADE_AFTER;
+        return { boundary, delta, alpha: smoothstep01(Math.max(0, Math.min(1, progress))), next: regions[i] };
+      }
+    }
+    return null;
+  }
+
   function smoothstep01(value) {
     const t = Math.max(0, Math.min(1, value));
     return t * t * (3 - 2 * t);
@@ -366,6 +386,8 @@
     state.pickups.length = 0;
     state.landmarks.length = 0;
     state.particles.length = 0;
+    state.lastObstacleType = null;
+    state.obstacleTypeStreak = 0;
     state.counts = Object.fromEntries(foods.map((f) => [f.id, 0]));
     state.firstObstacleAt = 1.6;
     state.nextPickup = 0.65;
@@ -384,6 +406,7 @@
     startPanel.hidden = true;
     gameOverPanel.hidden = true;
     pauseButton.hidden = false;
+    homeRunButton.hidden = false;
     pauseBadge.hidden = true;
   }
 
@@ -431,6 +454,7 @@
     state.mode = 'over';
     state.paused = false;
     pauseButton.hidden = true;
+    homeRunButton.hidden = true;
     pauseBadge.hidden = true;
     const best = Math.max(Number(localStorage.getItem('booRunnerBest') || 0), state.score);
     localStorage.setItem('booRunnerBest', String(best));
@@ -453,13 +477,20 @@
   }
 
   function spawnObstacle() {
-    let pool = obstacleKinds[state.currentRegion.id];
-    if (state.speed < AIR_OBSTACLE_MIN_SPEED) pool = pool.filter((kind) => kind.type !== 'air');
+    const fullPool = obstacleKinds[state.currentRegion.id];
+    // 점프용(ground)과 엎드리기용(air)을 먼저 50:50으로 고른다. 같은 동작이
+    // 두 번 연속 나온 뒤에는 반드시 반대 동작을 요구해 한쪽으로 몰리지 않게 한다.
+    let wantedType = Math.random() < .5 ? 'ground' : 'air';
+    if (state.obstacleTypeStreak >= 2) wantedType = state.lastObstacleType === 'ground' ? 'air' : 'ground';
+    let pool = fullPool.filter((kind) => kind.type === wantedType);
+    if (!pool.length) pool = fullPool;
     const recent = state.obstacles.slice(-MAX_OBSTACLE_DUPLICATION);
     if (recent.length === MAX_OBSTACLE_DUPLICATION && recent.every((o) => o.kind.label === recent[0].kind.label) && pool.length > 1) {
       pool = pool.filter((kind) => kind.label !== recent[0].kind.label);
     }
     const kind = pool[(Math.random() * pool.length) | 0];
+    if (kind.type === state.lastObstacleType) state.obstacleTypeStreak += 1;
+    else { state.lastObstacleType = kind.type; state.obstacleTypeStreak = 1; }
     const width = kind.type === 'air' ? 54 : 28;
     state.obstacles.push({ x: W + 30, kind, width, gap: obstacleGap(width), passed: false });
   }
@@ -502,11 +533,6 @@
     if (state.mode !== 'playing' || state.paused) return;
     state.elapsed += dt;
 
-    // 길게 누르기: 착지 후 손을 떼기 전까지 엎드린 채 유지
-    if (state.currentRegion.id !== 'space' && touchStart && !touchStart.swiped && performance.now() - touchStart.time > 300) {
-      touchStart.swiped = true;
-      state.duckHeld = true;
-    }
     state.duckTimer = Math.max(0, state.duckTimer - dt);
 
     // 공룡 게임: 매 프레임 ACCELERATION씩 가속, MAX_SPEED에서 멈춤
@@ -580,8 +606,12 @@
     state.trail.push({ w: state.worldX, y: state.playerY, duck: state.ducking, vy: state.playerVY });
     if (state.trail.length > 400) state.trail.splice(0, state.trail.length - 400);
 
+    // 페이드 전후 약 3~4초는 안전 구간이다. 이미 보이던 장애물도 페이드 속에서 정리한다.
+    const transition = regionTransitionAt(state.distance);
+    if (transition) state.obstacles.length = 0;
+
     // 장애물 생성: 마지막 장애물 뒤로 정해진 간격이 화면 안에 들어오면 다음 장애물 등장
-    if (state.currentRegion.id !== 'space' && !state.previewMode && state.elapsed >= state.firstObstacleAt) {
+    if (state.currentRegion.id !== 'space' && !state.previewMode && !transition && state.elapsed >= state.firstObstacleAt) {
       const last = state.obstacles.at(-1);
       if (!last || last.x + last.width + last.gap < W) spawnObstacle();
     }
@@ -633,7 +663,7 @@
   }
 
   function handleCollisions() {
-    if (state.currentRegion.id === 'space') return;
+    if (state.currentRegion.id === 'space' || regionTransitionAt(state.distance)) return;
     const boxes = playerBoxes();
     for (const obstacle of state.obstacles) {
       const box = obstacleBox(obstacle);
@@ -931,6 +961,7 @@
     drawParticles();
     drawDayTint();
     drawHud(region);
+    drawRegionTransition();
     if (state.mode === 'menu') drawMenuBackdrop();
   }
 
@@ -2036,26 +2067,28 @@
 
   function drawHud(region) {
     if (state.mode === 'menu') return;
-    rect(12, 17, 150, 50, 'rgba(255,255,255,.88)');
-    rect(12, 17, 5, 50, region.accent);
-    textLabel(region.name, 25, 34, 13, '#1f2932', 'left', 900);
-    textLabel(`${Math.floor(state.distance)}m  ·  ${state.score.toLocaleString('ko-KR')}점`, 25, 53, 11, '#59636c', 'left', 800);
-    textLabel(state.previewMode ? `살펴보기 · 무적` : daylight.name, 151, 34, 8, region.accent, 'right', 900);
+    // iPhone의 노치·상태 표시줄과 상단 버튼 아래에서 확실히 보이도록 내린다.
+    const hudY = 108;
+    rect(12, hudY, 150, 50, 'rgba(255,255,255,.9)');
+    rect(12, hudY, 5, 50, region.accent);
+    textLabel(region.name, 25, hudY + 17, 13, '#1f2932', 'left', 900);
+    textLabel(`${Math.floor(state.distance)}m  ·  ${state.score.toLocaleString('ko-KR')}점`, 25, hudY + 36, 11, '#59636c', 'left', 800);
+    textLabel(state.previewMode ? `살펴보기 · 무적` : daylight.name, 151, hudY + 17, 8, region.accent, 'right', 900);
 
     const total = foods.reduce((sum, food) => sum + state.counts[food.id], 0);
-    rect(170, 18, 163, 48, 'rgba(255,255,255,.86)');
+    rect(170, hudY + 1, 208, 48, 'rgba(255,255,255,.9)');
     foods.forEach((food, i) => {
-      ctx.drawImage(foodCanvases[food.id], 186 + i * 52, 21, 22, 22);
-      textLabel(String(state.counts[food.id]), 197 + i * 52, 57, 9, '#26313a', 'center', 900);
+      ctx.drawImage(foodCanvases[food.id], 187 + i * 59, hudY + 4, 24, 24);
+      textLabel(String(state.counts[food.id]), 199 + i * 59, hudY + 40, 10, '#26313a', 'center', 900);
     });
-    if (total > 0) textLabel(`+${total * 10}`, 325, 84, 9, '#e0553d', 'right', 900);
+    if (total > 0) textLabel(`+${total * 10}`, 373, hudY + 39, 9, '#e0553d', 'right', 900);
 
     if (state.regionBanner > 0) {
       const alpha = Math.min(1, state.regionBanner, (3.5 - state.regionBanner) * 3);
       ctx.save(); ctx.globalAlpha = alpha;
-      rect(28, 120, 334, 74, 'rgba(18,25,34,.86)');
-      textLabel(region.name, W / 2, 145, 25, '#fff', 'center', 900);
-      textLabel(region.subtitle, W / 2, 174, 11, '#dce5ea', 'center', 800);
+      rect(28, 172, 334, 74, 'rgba(18,25,34,.86)');
+      textLabel(region.name, W / 2, 197, 25, '#fff', 'center', 900);
+      textLabel(region.subtitle, W / 2, 226, 11, '#dce5ea', 'center', 800);
       ctx.restore();
     }
 
@@ -2063,12 +2096,30 @@
       const lm = state.landmarkCaption;
       const alpha = Math.min(1, state.landmarkCaptionTime, (4.2 - state.landmarkCaptionTime) * 4);
       ctx.save(); ctx.globalAlpha = alpha;
-      rect(25, 214, 340, 59, 'rgba(255,255,255,.92)');
-      rect(25, 214, 6, 59, region.accent);
-      textLabel(lm.name, 42, 232, 14, '#202a33', 'left', 900);
-      textLabel(lm.detail, 42, 255, 10, '#5b646d', 'left', 700);
+      rect(25, 265, 340, 59, 'rgba(255,255,255,.92)');
+      rect(25, 265, 6, 59, region.accent);
+      textLabel(lm.name, 42, 283, 14, '#202a33', 'left', 900);
+      textLabel(lm.detail, 42, 306, 10, '#5b646d', 'left', 700);
       ctx.restore();
     }
+  }
+
+  function drawRegionTransition() {
+    if (state.mode !== 'playing') return;
+    const transition = regionTransitionAt(state.distance);
+    if (!transition) return;
+    const alpha = Math.min(.96, transition.alpha * 1.08);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    rect(0, 0, W, H, '#0b1018');
+    if (transition.alpha > .48) {
+      const titleAlpha = Math.min(1, (transition.alpha - .48) / .3);
+      ctx.globalAlpha = titleAlpha;
+      textLabel(transition.next.name, W / 2, H / 2 - 8, 29, '#ffffff', 'center', 900);
+      textLabel(transition.next.subtitle, W / 2, H / 2 + 25, 11, '#dce5ea', 'center', 800);
+      textLabel('새로운 지역으로 이동 중', W / 2, H / 2 + 55, 9, '#9fb0c3', 'center', 800);
+    }
+    ctx.restore();
   }
 
   function drawMenuBackdrop() {
@@ -2079,28 +2130,40 @@
   }
 
   // ---- 입력 ----
-  // 터치: 누르는 즉시 점프(공룡 게임과 같은 반응). 아래로 밀면 공중에서는 빠르게 착지하고 땅에서는 엎드린다.
-  // 길게 누르면 착지 후 손을 뗄 때까지 엎드려 있는다.
+  // 터치 시작 때는 아직 아무 동작도 하지 않는다. 손가락의 방향을 확인한 뒤
+  // 위로 밀기=점프, 아래로 밀기=엎드리기로 확정해 아래 스와이프가 점프로 오인되지 않는다.
+  // 짧은 탭은 빠른 플레이를 위해 점프로 남겨 둔다.
   let touchStart = null;
   canvas.addEventListener('pointerdown', (event) => {
     if (state.paused) { togglePause(); return; }
     if (state.mode !== 'playing') return;
-    touchStart = { x: event.clientX, y: event.clientY, time: performance.now(), swiped: false };
-    jump();
+    event.preventDefault();
+    touchStart = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, gesture: null };
+    if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
   });
 
   canvas.addEventListener('pointermove', (event) => {
-    if (!touchStart || state.mode !== 'playing' || touchStart.swiped) return;
+    if (!touchStart || state.mode !== 'playing' || touchStart.gesture) return;
+    event.preventDefault();
+    const dx = event.clientX - touchStart.x;
     const dy = event.clientY - touchStart.y;
-    if (dy > 26) {
-      touchStart.swiped = true;
+    if (Math.abs(dy) < 24 || Math.abs(dy) < Math.abs(dx) * 1.15) return;
+    if (dy < 0) {
+      touchStart.gesture = 'up';
+      state.upHeld = true;
+      jump();
+    } else {
+      touchStart.gesture = 'down';
       pressDown();
     }
   });
 
-  const endTouch = () => {
+  const endTouch = (event) => {
     if (!touchStart) return;
-    releaseDown(touchStart.swiped ? .45 : 0);
+    event.preventDefault();
+    if (!touchStart.gesture) jump();
+    if (touchStart.gesture === 'up') state.upHeld = false;
+    if (touchStart.gesture === 'down') releaseDown(.7);
     touchStart = null;
   };
   canvas.addEventListener('pointerup', endTouch);
@@ -2128,7 +2191,26 @@
 
   startButton.addEventListener('click', () => resetGame(previewRegion.value));
   $('restartButton').addEventListener('click', () => resetGame(0));
-  $('homeButton').addEventListener('click', () => { state.mode = 'menu'; gameOverPanel.hidden = true; startPanel.hidden = false; });
+  function goHome() {
+    state.mode = 'menu';
+    state.paused = false;
+    state.distance = 0;
+    state.worldX = 0;
+    state.playerY = 0;
+    state.playerVY = 0;
+    state.currentRegion = regions[0];
+    state.obstacles.length = 0;
+    state.pickups.length = 0;
+    state.landmarks.length = 0;
+    touchStart = null;
+    gameOverPanel.hidden = true;
+    startPanel.hidden = false;
+    pauseButton.hidden = true;
+    homeRunButton.hidden = true;
+    pauseBadge.hidden = true;
+  }
+  $('homeButton').addEventListener('click', goHome);
+  homeRunButton.addEventListener('click', (event) => { event.stopPropagation(); goHome(); });
   pauseButton.addEventListener('click', (event) => { event.stopPropagation(); togglePause(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state.mode === 'playing' && !state.paused) togglePause();
