@@ -153,7 +153,7 @@
     obstacles: [], pickups: [], landmarks: [], particles: [],
     counts: Object.fromEntries(foods.map((f) => [f.id, 0])),
     firstObstacleAt: 1.6, nextPickup: 0.75, elapsed: 0,
-    currentRegion: regions[0], previousRegionId: null, regionBanner: 0,
+    currentRegion: regions[0], previousRegionId: null, regionBanner: 0, entryFade: 0,
     lastObstacleType: null, obstacleTypeStreak: 0,
     landmarkCaption: null, landmarkCaptionTime: 0,
     seenLandmarks: new Set(), lastFrame: performance.now(),
@@ -305,8 +305,10 @@
 
   // 지역 경계 전후에는 화면 전체가 어두워졌다 밝아지고 장애물이 잠시 사라진다.
   // 거리 기준이라 기기 프레임 속도와 관계없이 동일한 길이로 보인다.
-  const REGION_FADE_BEFORE = 30;
-  const REGION_FADE_AFTER = 42;
+  // v12: v11보다 정확히 두 배 긴 전환 거리다.
+  const REGION_FADE_BEFORE = 60;
+  const REGION_FADE_AFTER = 84;
+  const ENTRY_FADE_SECONDS = 4.2;
   function regionTransitionAt(distance) {
     for (let i = 1; i < regions.length; i += 1) {
       const boundary = regions[i].start;
@@ -399,6 +401,9 @@
     }
     state.previousRegionId = null;
     state.regionBanner = 3.2;
+    // 오산뿐 아니라 동탄·순천향대 등 어느 지역을 바로 선택해 시작해도
+    // 검은 화면에서 해당 지역으로 천천히 페이드인한다.
+    state.entryFade = ENTRY_FADE_SECONDS;
     state.landmarkCaption = null;
     state.landmarkCaptionTime = 0;
     state.seenLandmarks = new Set();
@@ -534,6 +539,7 @@
     state.elapsed += dt;
 
     state.duckTimer = Math.max(0, state.duckTimer - dt);
+    state.entryFade = Math.max(0, state.entryFade - dt);
 
     // 공룡 게임: 매 프레임 ACCELERATION씩 가속, MAX_SPEED에서 멈춤
     state.speed = Math.min(MAX_SPEED, state.speed + ACCELERATION * dt);
@@ -608,10 +614,11 @@
 
     // 페이드 전후 약 3~4초는 안전 구간이다. 이미 보이던 장애물도 페이드 속에서 정리한다.
     const transition = regionTransitionAt(state.distance);
-    if (transition) state.obstacles.length = 0;
+    const safeTransition = Boolean(transition) || state.entryFade > 0;
+    if (safeTransition) state.obstacles.length = 0;
 
     // 장애물 생성: 마지막 장애물 뒤로 정해진 간격이 화면 안에 들어오면 다음 장애물 등장
-    if (state.currentRegion.id !== 'space' && !state.previewMode && !transition && state.elapsed >= state.firstObstacleAt) {
+    if (state.currentRegion.id !== 'space' && !state.previewMode && !safeTransition && state.elapsed >= state.firstObstacleAt) {
       const last = state.obstacles.at(-1);
       if (!last || last.x + last.width + last.gap < W) spawnObstacle();
     }
@@ -663,7 +670,7 @@
   }
 
   function handleCollisions() {
-    if (state.currentRegion.id === 'space' || regionTransitionAt(state.distance)) return;
+    if (state.currentRegion.id === 'space' || state.entryFade > 0 || regionTransitionAt(state.distance)) return;
     const boxes = playerBoxes();
     for (const obstacle of state.obstacles) {
       const box = obstacleBox(obstacle);
@@ -803,9 +810,10 @@
   function currentSchBattle() {
     if (state.currentRegion.id !== 'sch') return null;
     for (const at of SCH_BATTLE_AT) {
-      // 거리 1m가 화면 14px이므로 다른 배경 물체와 정확히 같은 속도로 지난다.
-      const x = BOO_FOOT_X + (at - state.distance) * 14;
-      if (x > -440 && x < W + 440) {
+      // 도로 물체는 1m당 14px 이동하지만 교수 장면은 1m당 1.4px만 이동한다.
+      // 달리는 속도의 정확히 10%로 흐르는 거대한 원경처럼 오래 머문다.
+      const x = W / 2 + (at - state.distance) * 1.4;
+      if (x > -560 && x < W + 560) {
         return { x, at, frame: Math.floor(state.elapsed / .19) % 4 };
       }
     }
@@ -856,13 +864,29 @@
   function drawProfessorFight(scene) {
     const sprite = sprites.profFight;
     if (!sprite) return;
-    const scale = .61;
+    const scale = .78;
     const width = sprite.srcW * scale;
-    const bottom = groundAtScreenX(scene.x) + 2;
+    const bottom = 718;
     drawSheetFrame(sprite, scene.frame, scene.x - width / 2, bottom, scale);
     if (scene.frame === 1 || scene.frame === 2) {
       const sparkX = scene.x + (scene.frame === 1 ? 18 : -10);
-      textLabel('퍽!', sparkX, bottom - 250, 18, '#ffdc58', 'center', 1000);
+      textLabel('퍽!', sparkX, bottom - 325, 20, '#ffdc58', 'center', 1000);
+    }
+  }
+
+  function drawSchFleet() {
+    // 여러 높이·크기·속도의 작은 거북선이 원근감을 이루며 계속 날아다닌다.
+    for (let i = 0; i < 24; i += 1) {
+      const depth = hash(i * 73 + 17);
+      const speed = 20 + depth * 42;
+      const span = 560 + hash(i * 41 + 9) * 520;
+      const phase = i * 83 + hash(i * 29 + 3) * 260;
+      const y = 72 + ((i * 97) % 360) + hash(i * 61 + 5) * 34;
+      const scale = .28 + depth * .58;
+      ctx.save();
+      ctx.globalAlpha = .46 + depth * .48;
+      drawTurtleShip(passingX(speed, phase, span), y, scale);
+      ctx.restore();
     }
   }
 
@@ -927,10 +951,6 @@
       drawWalker(passingX(25, 510), 614, '#70a56d', '#474452', 4, true, .9);
       drawCat(passingX(15, 90, 620), 615, '#d6a368');
       drawCat(passingX(12, 400, 760), 615, '#8f8b88');
-      drawTurtleShip(passingX(42, 70, 760), 190, .86);
-      drawTurtleShip(passingX(51, 330, 880), 245, .68);
-      drawTurtleShip(passingX(37, 590, 710), 130, .58);
-      drawTurtleShip(passingX(58, 810, 960), 310, .48);
     }
     ctx.restore();
   }
@@ -947,13 +967,14 @@
       for (const landmark of state.landmarks) drawLandmark(landmark, region);
       drawGround(region);
     }
-    if (schBattle) drawGiantTurtleShip(schBattle);
+    if (region.id === 'sch') drawSchFleet();
+    // 교수 대련은 도로보다 먼저 그려져 거대한 배경 장면처럼 보인다.
+    if (schBattle) drawProfessorFight(schBattle);
     if (region.id !== 'space') drawRunningRoute(region);
     if (panoramaReady && region.id === 'sch') {
       for (const landmark of state.landmarks) drawSchLandmarkSprite(landmark);
     }
     drawRegionExtras(region);
-    if (schBattle) drawProfessorFight(schBattle);
     drawSpeedLines(region);
     for (const pickup of state.pickups) drawFood(pickup);
     for (const obstacle of state.obstacles) drawObstacle(obstacle);
@@ -2106,7 +2127,11 @@
 
   function drawRegionTransition() {
     if (state.mode !== 'playing') return;
-    const transition = regionTransitionAt(state.distance);
+    let transition = regionTransitionAt(state.distance);
+    const entryAlpha = state.entryFade > 0 ? smoothstep01(state.entryFade / ENTRY_FADE_SECONDS) : 0;
+    if (entryAlpha > (transition?.alpha || 0)) {
+      transition = { alpha: entryAlpha, next: state.currentRegion, entry: true };
+    }
     if (!transition) return;
     const alpha = Math.min(.96, transition.alpha * 1.08);
     ctx.save();
@@ -2117,7 +2142,7 @@
       ctx.globalAlpha = titleAlpha;
       textLabel(transition.next.name, W / 2, H / 2 - 8, 29, '#ffffff', 'center', 900);
       textLabel(transition.next.subtitle, W / 2, H / 2 + 25, 11, '#dce5ea', 'center', 800);
-      textLabel('새로운 지역으로 이동 중', W / 2, H / 2 + 55, 9, '#9fb0c3', 'center', 800);
+      textLabel(transition.entry ? '달리기를 시작합니다' : '새로운 지역으로 이동 중', W / 2, H / 2 + 55, 9, '#9fb0c3', 'center', 800);
     }
     ctx.restore();
   }
