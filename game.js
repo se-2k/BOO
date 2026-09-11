@@ -119,6 +119,14 @@
     },
   ];
 
+  const REGION_ARRIVAL_MESSAGES = {
+    osan: '부서진의 고향 오산에 도착하셨습니다.',
+    dongtan: '부서진의 현재 고향 동탄에 도착하셨습니다.',
+    sch: '부서진의 진짜 고향 순천향대에 도착하셨습니다.',
+    gwangjin: '부서진이 잘 도착했습니다.',
+    space: '앞으로 부서진은 끝없이 더 나아갑니다.',
+  };
+
   const obstacleKinds = {
     osan: [
       { type: 'ground', label: '택배 상자', color: '#b57242' },
@@ -670,15 +678,19 @@
   }
 
   function handleCollisions() {
-    if (state.currentRegion.id === 'space' || state.entryFade > 0 || regionTransitionAt(state.distance)) return;
     const boxes = playerBoxes();
-    for (const obstacle of state.obstacles) {
-      const box = obstacleBox(obstacle);
-      const hit = boxes.find((b) => overlap(b, box));
-      if (hit) {
-        burst(hit.x + hit.w / 2, hit.y + hit.h / 2, '#ff694e', 14);
-        gameOver();
-        return;
+    const invulnerable = state.currentRegion.id === 'space' || state.entryFade > 0 || Boolean(regionTransitionAt(state.distance));
+
+    // 전환 중에는 장애물만 무시한다. 음식 아이템 수집은 아래에서 항상 판정한다.
+    if (!invulnerable) {
+      for (const obstacle of state.obstacles) {
+        const box = obstacleBox(obstacle);
+        const hit = boxes.find((b) => overlap(b, box));
+        if (hit) {
+          burst(hit.x + hit.w / 2, hit.y + hit.h / 2, '#ff694e', 14);
+          gameOver();
+          return;
+        }
       }
     }
 
@@ -2141,8 +2153,7 @@
       const titleAlpha = Math.min(1, (transition.alpha - .48) / .3);
       ctx.globalAlpha = titleAlpha;
       textLabel(transition.next.name, W / 2, H / 2 - 8, 29, '#ffffff', 'center', 900);
-      textLabel(transition.next.subtitle, W / 2, H / 2 + 25, 11, '#dce5ea', 'center', 800);
-      textLabel(transition.entry ? '달리기를 시작합니다' : '새로운 지역으로 이동 중', W / 2, H / 2 + 55, 9, '#9fb0c3', 'center', 800);
+      textLabel(REGION_ARRIVAL_MESSAGES[transition.next.id], W / 2, H / 2 + 31, 12, '#dce5ea', 'center', 900);
     }
     ctx.restore();
   }
